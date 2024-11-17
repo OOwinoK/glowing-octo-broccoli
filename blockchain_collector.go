@@ -2,19 +2,20 @@ package blockchain_collector
 
 import (
 	"context"
+	"database/sql"
+	"fmt"
 	"log"
 	"sync"
-	"time"
 
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/ethclient"
-	"github.com/jackc/pgx/v5/pgxpool"
+	_ "github.com/go-sql-driver/mysql" // MySQL driver
 )
 
 // Collector represents the blockchain data collector
 type Collector struct {
 	Client     *ethclient.Client
-	DBPool     *pgxpool.Pool
+	DB         *sql.DB
 	BatchSize  int
 	BlockRange int64
 }
@@ -26,14 +27,19 @@ func NewCollector(rpcURL, dbURL string, batchSize int, blockRange int64) (*Colle
 		return nil, err
 	}
 
-	dbPool, err := pgxpool.New(context.Background(), dbURL)
+	db, err := sql.Open("mysql", dbURL)
 	if err != nil {
 		return nil, err
 	}
 
+	// Check if the connection is valid
+	if err := db.Ping(); err != nil {
+		return nil, fmt.Errorf("failed to connect to MySQL: %w", err)
+	}
+
 	return &Collector{
 		Client:     client,
-		DBPool:     dbPool,
+		DB:         db,
 		BatchSize:  batchSize,
 		BlockRange: blockRange,
 	}, nil
@@ -77,10 +83,10 @@ func (c *Collector) processBlock(blockNumber int64) error {
 	}
 
 	// Example: store block hash and number
-	query := `INSERT INTO blocks (number, hash, timestamp) VALUES ($1, $2, $3)`
-	_, err = c.DBPool.Exec(context.Background(), query, block.Number().Int64(), block.Hash().Hex(), block.Time())
+	query := `INSERT INTO blocks (number, hash, timestamp) VALUES (?, ?, ?)`
+	_, err = c.DB.Exec(query, block.Number().Int64(), block.Hash().Hex(), block.Time())
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to insert block %d: %w", blockNumber, err)
 	}
 
 	log.Printf("Block %d stored successfully\n", blockNumber)
@@ -89,5 +95,5 @@ func (c *Collector) processBlock(blockNumber int64) error {
 
 // Close releases resources used by the collector
 func (c *Collector) Close() {
-	c.DBPool.Close()
+	c.DB.Close()
 }

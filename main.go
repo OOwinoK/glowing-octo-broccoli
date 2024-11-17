@@ -8,9 +8,9 @@ import (
 
 func main() {
 	const (
-		rpcURL    = "https://mainnet.infura.io/v3/YOUR_INFURA_PROJECT_ID"
-		dbURL     = "postgresql://user:password@localhost:5432/blockchain"
-		batchSize = 10
+		rpcURL     = "https://mainnet.infura.io/v3/YOUR_INFURA_PROJECT_ID"
+		dbURL      = "user:password@tcp(localhost:3306)/blockchain" // Replace with your MySQL connection string
+		batchSize  = 10
 		blockRange = 1000
 		startBlock = 17000000
 		endBlock   = 17001000
